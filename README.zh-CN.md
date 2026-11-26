@@ -6,7 +6,7 @@
 
 ## 工作流程
 
-本仓库包含**中心端**，包括 SSH 接收器、本机采集器、仪表盘和飞书同步脚本。发送端运行在另一台 GPU 服务器上，按下文的协议上传采样。
+本仓库包含**中心端**和 [`sender/` 远程发送端](sender/README.zh-CN.md)。中心端提供 SSH 接收器、本机采集器、仪表盘和飞书同步；发送端安装在其他 GPU 服务器上，负责采集和可靠上传。
 
 ```mermaid
 flowchart TD
@@ -48,6 +48,14 @@ restrict,command="/usr/bin/python3 -I /absolute/path/to/gpu_tracker/gpuview_inge
 发送端通过 SSH 标准输入提交版本为 `1` 的 JSON。每批最多 100 个采样区间，最大 512 KiB。区间包含 Unix 秒时间戳 `start_utc` 和 `end_utc`，以及按用户汇总的 `username`、`gpus` 和 `memory_mib`。空闲时使用 `users: []`，无法查到进程所属账号时使用 `?`。
 
 实际上传时使用近期的采样数据，并校验中心端的 SSH 主机密钥。接收器在提交整批数据后返回退出码 `0`。重复发送相同批次不会重复计入。发送端收到成功结果后再推进上传进度。[JSON 示例](README.md#enroll-a-remote-sender)
+
+每个区间时长大于 0 且不超过 45 秒，时间戳须在过去 31 天内，最多领先中心端时钟 60 秒。按[发送端部署说明](sender/README.zh-CN.md)配置：每 30 秒采集一次，使用真实数据验证重复上传后，再开启每 3 分钟上传的用户级 systemd 定时任务。发送端不需要飞书凭据。
+
+无需 GPU、SSH 或外部 Python 依赖即可运行发送端与真实接收器兼容性测试：
+
+```sh
+python3 -m unittest discover -s sender/tests -t sender -v
+```
 
 ## 3. 同步到飞书
 

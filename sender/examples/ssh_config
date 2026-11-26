@@ -1,0 +1,20 @@
+# Copy to STATE_DIR/ssh_config and replace ALL paths, the host, port and account.
+# Host alias must remain gpuview-hub; the receiver command is forced on the hub.
+Host gpuview-hub
+    HostName hub.example.org
+    Port 22
+    User ingest-user
+    IdentityFile /absolute/path/to/sender/state/id_ed25519
+    IdentitiesOnly yes
+    IdentityAgent none
+    UserKnownHostsFile /absolute/path/to/sender/state/known_hosts
+    GlobalKnownHostsFile /dev/null
+    StrictHostKeyChecking yes
+    BatchMode yes
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    ForwardAgent no
+    ForwardX11 no
+    ClearAllForwardings yes
+    RequestTTY no
+    ConnectTimeout 10

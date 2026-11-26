@@ -1,4 +1,7 @@
 /state/
+**/state/
+/sender/ssh_config
+/sender/sender-ssh.conf
 /.venv/
 __pycache__/
 *.py[cod]

@@ -6,7 +6,14 @@ Track occupied NVIDIA GPU time and allocated VRAM by Linux account across shared
 
 ## How it works
 
-This repository contains the **hub**, including the SSH receiver, local collector, dashboard, and Feishu exporter. The remote sender runs on a separate GPU server and implements the batch protocol below.
+This repository contains both the **hub** (SSH receiver, local collector, dashboard, and Feishu exporter) and the **remote sender** in [`sender/`](sender/README.md). Install the hub on the central server and the sender on each additional GPU server.
+
+| Path | Role |
+| --- | --- |
+| `usage.py`, `usage.tpl` | Hub collection and private dashboard |
+| `gpuview_ingest.py` | Restricted SSH receiver for remote intervals |
+| `gpuview_report.py`, `gpuview_feishu.py` | Reporting and Feishu export |
+| `sender/` | Remote collector, durable uploader, service installer, examples and tests |
 
 ```mermaid
 flowchart TD
@@ -60,7 +67,17 @@ The sender submits a version-1 JSON batch on SSH stdin with up to 100 intervals 
 }
 ```
 
-Use actual, recent timestamps and verify the hub's SSH host key. The receiver exits `0` after committing the batch and accepts identical retries. Advance the sender's upload cursor only after success. This repository contains the receiver and its protocol. The sender runs separately.
+Use actual, recent timestamps and verify the hub's SSH host key. Each interval must last more than zero and at most 45 seconds, with timestamps in the past 31 days or at most 60 seconds ahead. The receiver exits `0` with no output after committing the batch and accepts identical retries. Advance the sender's upload cursor only after success.
+
+On each remote server, follow the [sender setup guide](sender/README.md). The sender collects every 30 seconds, verifies real duplicate delivery before enabling uploads, and sends queued intervals every three minutes. Keys, host configuration, logs and usage databases stay in its ignored, private state directory. Only the hub needs Feishu credentials.
+
+## Test the sender
+
+No GPU, SSH access or external Python dependencies are needed for tests, including compatibility with the actual hub receiver:
+
+```sh
+python3 -m unittest discover -s sender/tests -t sender -v
+```
 
 ## Sync to Feishu
 
