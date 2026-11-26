@@ -64,7 +64,7 @@ systemctl --user list-timers gpuview-upload.timer --all --no-pager
 
 `verify` sends a small real batch twice with identical bytes. Both calls must return exit 0 with no output before the cursor advances and duplicate verification is marked complete. It needs at least one unsent interval; if the queue is empty, wait for collection. The upload installer performs this check itself if it has not already succeeded, drains the backlog, and only then enables a three-minute timer. Scheduled uploads refuse to run before verification. Verify the sender's coverage and rankings using the hub dashboard's Server filter after enrollment.
 
-Each batch has at most 100 intervals and 512 KiB. The protocol accepts intervals of up to 45 seconds, from the past 31 days and at most 60 seconds ahead. Exact pending JSON is persisted before transmission and retained for retry on failure. Cursor advancement follows whole-batch acknowledgment. Unsent expired data is retained and blocks upload with an error; investigate clock, connectivity or receiver errors rather than editing the cursor blindly. History is retained locally after delivery, so monitor disk usage during long deployments.
+See the [upload protocol](../docs/protocol.md) for batch limits and acknowledgment rules. The uploader saves the exact pending JSON before transmission and retries the same batch on failure. It advances the cursor after whole-batch acknowledgment. Expired unsent data stays in the local database and blocks upload with an error. Check the clocks, connectivity and receiver logs when investigating failures. History is retained locally after delivery, so monitor disk usage during long deployments.
 
 ## Operate and troubleshoot
 

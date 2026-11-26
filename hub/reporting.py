@@ -1,3 +1,5 @@
+"""Query GPU usage across local and remote servers."""
+
 import socket
 
 

@@ -6,7 +6,15 @@
 
 ## 工作流程
 
-本仓库包含**中心端**和 [`sender/` 远程发送端](sender/README.zh-CN.md)。中心端提供 SSH 接收器、本机采集器、仪表盘和飞书同步；发送端安装在其他 GPU 服务器上，负责采集和可靠上传。
+在中央服务器上部署中心端，在其他 GPU 服务器上部署发送端。
+
+| 路径 | 用途 |
+| --- | --- |
+| [`hub/`](hub/) | 本机采集、SSH 接收、仪表盘、用量汇总和飞书同步 |
+| [`sender/`](sender/README.zh-CN.md) | 远程采集、上传、服务安装和测试 |
+| [上传协议](docs/protocol.md) | JSON 格式、批次限制和确认规则 |
+
+根目录的 `usage.py`、`gpuview_ingest.py` 和 `gpuview_feishu.py` 供现有服务、SSH 公钥配置和定时任务调用。中心端的数据保存在仓库根目录的 `state/` 中。
 
 ```mermaid
 flowchart TD
@@ -45,11 +53,7 @@ ssh -N -L 127.0.0.1:9988:/absolute/path/to/gpu_tracker/state/gpuview.sock user@h
 restrict,command="/usr/bin/python3 -I /absolute/path/to/gpu_tracker/gpuview_ingest.py sender-id" ssh-ed25519 <sender-public-key>
 ```
 
-发送端通过 SSH 标准输入提交版本为 `1` 的 JSON。每批最多 100 个采样区间，最大 512 KiB。区间包含 Unix 秒时间戳 `start_utc` 和 `end_utc`，以及按用户汇总的 `username`、`gpus` 和 `memory_mib`。空闲时使用 `users: []`，无法查到进程所属账号时使用 `?`。
-
-实际上传时使用近期的采样数据，并校验中心端的 SSH 主机密钥。接收器在提交整批数据后返回退出码 `0`。重复发送相同批次不会重复计入。发送端收到成功结果后再推进上传进度。[JSON 示例](README.md#enroll-a-remote-sender)
-
-每个区间时长大于 0 且不超过 45 秒，时间戳须在过去 31 天内，最多领先中心端时钟 60 秒。按[发送端部署说明](sender/README.zh-CN.md)配置：每 30 秒采集一次，使用真实数据验证重复上传后，再开启每 3 分钟上传的用户级 systemd 定时任务。发送端不需要飞书凭据。
+按[发送端部署说明](sender/README.zh-CN.md)校验中心端的 SSH 主机密钥并开启上传。发送端默认每 30 秒采集一次，用真实数据验证重复上传后，再开启每 3 分钟上传的用户级 systemd 定时任务。发送端不需要飞书凭据。JSON 示例、批次限制及重试规则见[上传协议](docs/protocol.md)。
 
 无需 GPU、SSH 或外部 Python 依赖即可运行发送端与真实接收器兼容性测试：
 

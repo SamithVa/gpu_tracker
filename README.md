@@ -6,14 +6,15 @@ Track occupied NVIDIA GPU time and allocated VRAM by Linux account across shared
 
 ## How it works
 
-This repository contains both the **hub** (SSH receiver, local collector, dashboard, and Feishu exporter) and the **remote sender** in [`sender/`](sender/README.md). Install the hub on the central server and the sender on each additional GPU server.
+Install the hub on the central server and the sender on each additional GPU server.
 
 | Path | Role |
 | --- | --- |
-| `usage.py`, `usage.tpl` | Hub collection and private dashboard |
-| `gpuview_ingest.py` | Restricted SSH receiver for remote intervals |
-| `gpuview_report.py`, `gpuview_feishu.py` | Reporting and Feishu export |
-| `sender/` | Remote collector, durable uploader, service installer, examples and tests |
+| [`hub/`](hub/) | Local collection, SSH receiver, dashboard, reporting and Feishu export |
+| [`sender/`](sender/README.md) | Remote collection, uploads, service installation and tests |
+| [Upload protocol](docs/protocol.md) | Shared JSON format, limits and acknowledgment rules |
+
+The root scripts `usage.py`, `gpuview_ingest.py` and `gpuview_feishu.py` are entry points for existing services, SSH keys and scheduled jobs. The hub uses the checkout's `state/` directory.
 
 ```mermaid
 flowchart TD
@@ -52,24 +53,7 @@ On the hub, bind each sender's public key to its own ID using an OpenSSH `author
 restrict,command="/usr/bin/python3 -I /absolute/path/to/gpu_tracker/gpuview_ingest.py sender-id" ssh-ed25519 <sender-public-key>
 ```
 
-The sender submits a version-1 JSON batch on SSH stdin with up to 100 intervals and a payload limit of 512 KiB. Each interval has `start_utc` and `end_utc` in Unix seconds. Each `users` entry contains `username`, `gpus`, and `memory_mib`. Send an empty `users` list for an idle interval and use `?` if the process owner is unknown.
-
-```json
-{
-  "version": 1,
-  "intervals": [
-    {
-      "start_utc": 1795536000,
-      "end_utc": 1795536030,
-      "users": [{"username": "example_user", "gpus": 2, "memory_mib": 40960}]
-    }
-  ]
-}
-```
-
-Use actual, recent timestamps and verify the hub's SSH host key. Each interval must last more than zero and at most 45 seconds, with timestamps in the past 31 days or at most 60 seconds ahead. The receiver exits `0` with no output after committing the batch and accepts identical retries. Advance the sender's upload cursor only after success.
-
-On each remote server, follow the [sender setup guide](sender/README.md). The sender collects every 30 seconds, verifies real duplicate delivery before enabling uploads, and sends queued intervals every three minutes. Keys, host configuration, logs and usage databases stay in its ignored, private state directory. Only the hub needs Feishu credentials.
+On each remote server, follow the [sender setup guide](sender/README.md) to verify the hub's SSH host key and enable uploads. The sender collects every 30 seconds by default and uploads queued intervals every three minutes. Keys, host configuration, logs and usage databases stay in its ignored, private state directory. Only the hub needs Feishu credentials. See the [upload protocol](docs/protocol.md) for the JSON example and retry rules.
 
 ## Test the sender
 

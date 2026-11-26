@@ -2,6 +2,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -14,7 +15,8 @@ import install
 import sender
 import uploader
 
-spec = importlib.util.spec_from_file_location('hub_receiver', sender.ROOT.parent / 'gpuview_ingest.py')
+ROOT = sender.ROOT.parent
+spec = importlib.util.spec_from_file_location('hub_receiver', ROOT / 'hub' / 'ingest.py')
 receiver = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(receiver)
 
@@ -22,8 +24,14 @@ spec.loader.exec_module(receiver)
 class IntegrationTests(unittest.TestCase):
     def test_real_receiver_accepts_sender_batch_and_duplicate(self):
         with tempfile.TemporaryDirectory() as directory:
+            checkout = Path(directory) / 'checkout'
+            (checkout / 'hub').mkdir(parents=True)
+            (checkout / 'state').mkdir()
+            command = checkout / 'gpuview_ingest.py'
+            shutil.copyfile(ROOT / command.name, command)
+            shutil.copyfile(ROOT / 'hub' / 'ingest.py', checkout / 'hub' / 'ingest.py')
             local = sender.connect(Path(directory))
-            hub = sqlite3.connect(':memory:')
+            hub = sqlite3.connect(checkout / 'state' / 'usage.sqlite3')
             self.addCleanup(local.close)
             self.addCleanup(hub.close)
             hub.executescript(receiver.SCHEMA)
@@ -35,8 +43,12 @@ class IntegrationTests(unittest.TestCase):
 
             def receive(payload, **kwargs):
                 delivered.append(payload)
-                batch = receiver.parse_batch(payload.encode('utf-8'), now)
-                receiver.store_batch(hub, 'test-sender', batch)
+                result = subprocess.run(
+                    [sys.executable, '-I', str(command), 'test-sender'],
+                    input=payload, capture_output=True, text=True, timeout=10,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, '')
 
             with patch.object(uploader, 'send', side_effect=receive):
                 self.assertEqual(uploader.upload(local, verify=True), 2)
