@@ -1,6 +1,23 @@
 # GPU Tracker
 
+[中文说明](README.zh-CN.md)
+
 Track occupied NVIDIA GPU time and allocated VRAM by Linux account across shared servers. The hub stores samples in SQLite, serves a private GPUView dashboard, and can sync daily totals to Feishu Base.
+
+## How it works
+
+This repository contains the **hub**, including the SSH receiver, local collector, dashboard, and Feishu exporter. The remote sender runs on a separate GPU server and implements the batch protocol below.
+
+```mermaid
+flowchart TD
+    Remote["Remote GPU server"] -->|"Sample every 30 seconds in our deployment"| Queue["Sender's local SQLite queue"]
+    Queue -->|"Push JSON over SSH about every 3 minutes in our deployment"| Receiver["Hub SSH receiver: gpuview_ingest.py"]
+    Receiver -->|"Validate, deduplicate, and commit"| Database[("Hub SQLite")]
+    Local["Hub's own GPUs: usage.py"] -->|"Sample every 30 seconds"| Database
+    Database --> Dashboard["Private GPUView dashboard"]
+    Database -->|"Summarize daily totals"| Exporter["Feishu exporter: gpuview_feishu.py"]
+    Exporter -->|"HTTPS sync, typically every 30 minutes"| Feishu["Feishu Base and rankings"]
+```
 
 ## Run the hub
 
