@@ -1,0 +1,15 @@
+/state/
+/.venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+*.log
+*.sqlite*
+*.db
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+/gpuview-hub-enrollment.md
+/gpuview-sender-setup.md
